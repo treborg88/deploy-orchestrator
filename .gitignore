@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Runtime data (generated per deployment, contains sensitive info)
+deployments.json
+data/
+
+# Generated tfvars (security-sensitive)
+*.auto.tfvars
+
+# SSH keys (never commit)
+*.pem
+*.key
+id_rsa*
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.*

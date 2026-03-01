@@ -1,0 +1,2252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TechStore Deploy Orchestrator</title>
+  <style>
+    /* ================================================================
+       RESET & BASE
+       ================================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --bg-card: #1a1d27;
+      --bg-input: #252833;
+      --border: #2e3140;
+      --text: #e1e4ed;
+      --text-dim: #8b8fa3;
+      --primary: #4f8cff;
+      --primary-hover: #3a7aef;
+      --green: #34d399;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --orange: #fb923c;
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ================================================================
+       LAYOUT
+       ================================================================ */
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    .app-header h1 { font-size: 18px; font-weight: 600; }
+    .app-header h1 span { color: var(--primary); }
+    .header-actions { display: flex; gap: 8px; }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* ================================================================
+       BUTTONS
+       ================================================================ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-input);
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover { border-color: var(--primary); background: #252833; }
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-danger { border-color: var(--red); color: var(--red); }
+    .btn-danger:hover { background: rgba(248,113,113,0.1); }
+    .btn-lg { padding: 14px 32px; font-size: 16px; border-radius: var(--radius-lg); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-warn { border-color: var(--yellow); color: var(--yellow); }
+    .btn-warn:hover { background: rgba(250,204,21,0.1); }
+
+    /* Quick-actions section inside server card */
+    .quick-actions { padding: 12px 20px; border-top: 1px solid var(--border); }
+    .quick-actions h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+    .quick-actions-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    /* ================================================================
+       CARDS
+       ================================================================ */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .card-selectable {
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .card-selectable:hover { border-color: var(--primary); }
+    .card-selectable.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+    .card h3 { font-size: 16px; margin-bottom: 4px; }
+    .card p { color: var(--text-dim); font-size: 14px; }
+    .card .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 8px;
+      background: rgba(79,140,255,0.15);
+      color: var(--primary);
+    }
+    .card .badge-green { background: rgba(52,211,153,0.15); color: var(--green); }
+
+    /* ================================================================
+       TABS
+       ================================================================ */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0;
+    }
+    .tab {
+      padding: 10px 20px;
+      border: none;
+      background: none;
+      color: var(--text-dim);
+      font-size: 14px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* ================================================================
+       FORMS
+       ================================================================ */
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--text-dim);
+    }
+    .form-group label .required { color: var(--red); }
+    .form-group .help-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--text-dim);
+      cursor: help;
+      position: relative;
+    }
+    .form-group .help-icon:hover::after {
+      content: attr(data-help);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2a2d3a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--text);
+      white-space: normal;
+      width: 280px;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      font-weight: 400;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus { border-color: var(--primary); }
+    input::placeholder { color: var(--text-dim); }
+    input[type="checkbox"] { width: auto; }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .form-row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* ================================================================
+       STEPPER (wizard progress)
+       ================================================================ */
+    .stepper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      margin-bottom: 32px;
+    }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .step-item.active { color: var(--primary); font-weight: 600; }
+    .step-item.completed { color: var(--green); }
+    .step-number {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .step-item.active .step-number { border-color: var(--primary); background: rgba(79,140,255,0.1); color: var(--primary); }
+    .step-item.completed .step-number { border-color: var(--green); background: rgba(52,211,153,0.1); color: var(--green); }
+    .step-connector {
+      width: 40px;
+      height: 2px;
+      background: var(--border);
+      margin: 0 8px;
+    }
+    .step-item.completed + .step-connector { background: var(--green); }
+
+    /* ================================================================
+       PIPELINE (live execution view)
+       ================================================================ */
+    .pipeline { margin-bottom: 24px; }
+    .pipeline-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .pipeline-step:last-child { border-bottom: none; }
+    .pipeline-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .pipeline-icon.pending { border: 2px solid var(--border); color: var(--text-dim); }
+    .pipeline-icon.running { border: 2px solid var(--primary); color: var(--primary); animation: pulse 1.5s infinite; }
+    .pipeline-icon.completed { background: rgba(52,211,153,0.15); color: var(--green); }
+    .pipeline-icon.skipped { background: rgba(139,143,163,0.15); color: var(--text-dim); }
+    .pipeline-icon.failed { background: rgba(248,113,113,0.15); color: var(--red); }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    .pipeline-label { font-size: 14px; font-weight: 500; }
+    .pipeline-detail { font-size: 12px; color: var(--text-dim); }
+
+    /* — Terminal output panel */
+    .terminal {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      max-height: 350px;
+      overflow-y: auto;
+      color: #c9d1d9;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .terminal .line-tf { color: #a78bfa; }
+    .terminal .line-ansible { color: #7dd3fc; }
+    .terminal .line-ssh { color: #86efac; }
+    .terminal .line-error { color: var(--red); }
+
+    /* — Troubleshoot panel */
+    .troubleshoot {
+      background: rgba(248,113,113,0.05);
+      border: 1px solid rgba(248,113,113,0.3);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-top: 16px;
+    }
+    .troubleshoot h4 { color: var(--red); margin-bottom: 8px; }
+    .troubleshoot ul { padding-left: 20px; }
+    .troubleshoot li { font-size: 13px; margin-bottom: 4px; color: var(--text-dim); }
+
+    /* ================================================================
+       SUCCESS SCREEN
+       ================================================================ */
+    .success-box {
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .success-box .icon { font-size: 48px; margin-bottom: 16px; }
+    .success-box h2 { font-size: 24px; margin-bottom: 8px; }
+    .success-box .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      text-align: left;
+      margin: 24px 0;
+    }
+    .success-box .info-item { font-size: 13px; }
+    .success-box .info-item span { color: var(--text-dim); display: block; font-size: 11px; }
+
+    .next-steps {
+      text-align: left;
+      margin-top: 20px;
+    }
+    .next-steps li {
+      padding: 6px 0;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .next-steps li::marker { color: var(--primary); }
+
+    /* ================================================================
+       MANAGE VIEW
+       ================================================================ */
+    .deployment-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .deployment-card:hover { background: rgba(79,140,255,0.04); }
+    .deployment-card .chevron {
+      font-size: 12px;
+      color: var(--text-dim);
+      transition: transform 0.2s;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+    .deployment-card .chevron.open { transform: rotate(90deg); }
+    .deployment-card .left { display: flex; align-items: center; gap: 12px; }
+    .deployment-card .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+    .deployment-card .right { display: flex; gap: 8px; }
+    /* Server body — collapsible */
+    .server-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    .server-body.open {
+      max-height: 2000px;
+      overflow-y: auto;
+    }
+
+    /* ================================================================
+       MISC
+       ================================================================ */
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .section-desc {
+      color: var(--text-dim);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    .flex-between { display: flex; align-items: center; justify-content: space-between; }
+    .gap-16 { gap: 16px; }
+    .mt-16 { margin-top: 16px; }
+    .mt-24 { margin-top: 24px; }
+    .mb-24 { margin-bottom: 24px; }
+    .text-center { text-align: center; }
+    .text-dim { color: var(--text-dim); }
+    .text-sm { font-size: 13px; }
+    .hidden { display: none !important; }
+
+    /* ================================================================
+       CHECKBOX GROUP
+       ================================================================ */
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      cursor: pointer;
+    }
+    .checkbox-group input[type="checkbox"] {
+      accent-color: var(--primary);
+    }
+
+    /* ================================================================
+       SUMMARY TABLE
+       ================================================================ */
+    .summary-table {
+      width: 100%;
+      font-size: 13px;
+      border-collapse: collapse;
+    }
+    .summary-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .summary-table td:first-child {
+      color: var(--text-dim);
+      width: 40%;
+    }
+    .summary-section {
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--primary) !important;
+      padding-top: 16px !important;
+    }
+
+    /* ================================================================
+       VM INFO PANEL
+       ================================================================ */
+    .vm-detail {
+      margin-top: 12px;
+      padding: 16px;
+      background: rgba(79,140,255,0.03);
+      border-top: 1px solid var(--border);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+    .vm-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .vm-stat {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+    .vm-stat .stat-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+    .vm-stat .stat-value {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .vm-stat .stat-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: var(--bg);
+      border-radius: 3px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .progress-bar .fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    .services-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .service-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+    }
+    .service-badge .svc-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    /* Collapsible detail sections */
+    .collapse-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      cursor: pointer;
+      user-select: none;
+      margin-top: 12px;
+      margin-bottom: 6px;
+    }
+    .collapse-toggle:hover { color: var(--text); }
+    .collapse-toggle .arrow {
+      display: inline-block;
+      transition: transform 0.2s;
+      font-size: 10px;
+    }
+    .collapse-toggle .arrow.open { transform: rotate(90deg); }
+    .collapse-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease;
+    }
+    .collapse-body.open {
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    .collapse-body .svc-row {
+      padding: 3px 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ================================================================
+       RESPONSIVE
+       ================================================================ */
+    /* ================================================================
+       MODAL (backup/restore)
+       ================================================================ */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      min-width: 420px; max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-box h3 {
+      margin: 0 0 16px; font-size: 18px;
+    }
+    .backup-list { list-style: none; padding: 0; margin: 0 0 16px; }
+    .backup-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .backup-item:hover { border-color: var(--primary); }
+    .backup-item.selected { border-color: var(--primary); background: rgba(79,140,255,0.08); }
+    .backup-item-name { font-size: 13px; word-break: break-all; }
+    .backup-item-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; margin-left: 12px; }
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 16px;
+      transition: border-color 0.15s;
+    }
+    .upload-zone:hover { border-color: var(--primary); }
+    .upload-zone input[type="file"] { display: none; }
+    .modal-actions {
+      display: flex; gap: 8px; justify-content: flex-end;
+      border-top: 1px solid var(--border);
+      padding-top: 16px; margin-top: 8px;
+    }
+
+    @media (max-width: 640px) {
+      .form-row, .form-row-3 { grid-template-columns: 1fr; }
+      .stepper { flex-wrap: wrap; }
+      .container { padding: 16px; }
+      .modal-box { min-width: auto; margin: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ================================================================
+       HEADER
+       ================================================================ -->
+  <header class="app-header">
+    <h1><span>&#9654;</span> Deploy Orchestrator</h1>
+    <div class="header-actions">
+      <button class="btn" onclick="showView('manage')" id="btn-manage">Manage Existing</button>
+    </div>
+  </header>
+
+  <div class="container" id="app">
+    <!-- Content rendered by JS -->
+  </div>
+
+  <!-- ================================================================
+       JAVASCRIPT — Wizard Logic
+       ================================================================ -->
+  <script>
+    // =================================================================
+    // STATE
+    // =================================================================
+    const state = {
+      // — Current view and wizard step
+      view: 'home',         // home | wizard | execute | manage
+      step: 1,              // wizard step (1-5)
+
+      // — Provider data (fetched from API)
+      providers: null,
+
+      // — User selections
+      infraSource: '',      // 'terraform' | 'existing'
+      provider: '',         // 'oci' | 'gcloud'
+      providerValues: {},   // terraform form values
+      existingServer: { host: '', user: 'ubuntu', keyPath: '', label: '', cloudProvider: '' },
+      deployMode: '',       // 'docker' | 'native-supabase'
+      appConfig: {
+        jwtSecret: '',
+        domain: '',
+        pgUser: 'techstore',
+        pgPassword: '',
+        pgDb: 'techstore',
+        supabaseUrl: '',
+        supabaseKey: '',
+        emailUser: '',
+        emailPass: '',
+        stripeKey: '',
+        sslMode: 'full_strict',
+        sslCertFile: 'C:\\Users\\Robert\\ssl-tmp\\eonsclover.com.pem',
+        sslKeyFile: 'C:\\Users\\Robert\\ssl-tmp\\eonsclover.com.key'
+      },
+
+      // — Execution state
+      pipelineSteps: [],
+      logs: [],
+      deployResult: null,
+      error: null,
+
+      // — Saved deployments
+      deployments: []
+    };
+
+    // =================================================================
+    // WEBSOCKET
+    // =================================================================
+    let ws = null;
+
+    /** Connect WebSocket for live terminal streaming */
+    function connectWS() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}`);
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        handleWSMessage(msg);
+      };
+
+      ws.onclose = () => {
+        // — Reconnect after 2s
+        setTimeout(connectWS, 2000);
+      };
+    }
+
+    /** Handle incoming WebSocket messages */
+    function handleWSMessage(msg) {
+      switch (msg.type) {
+        case 'step':
+          updatePipelineStep(msg);
+          break;
+        case 'log':
+          addLog(msg.text, msg.source);
+          break;
+        case 'ansible-task':
+          addLog(`[${msg.status}] ${msg.task}`, 'ansible');
+          break;
+        case 'complete':
+          state.deployResult = msg;
+          renderExecutionComplete();
+          break;
+        case 'error':
+          state.error = msg;
+          renderExecutionError();
+          break;
+      }
+    }
+
+    /** Update a pipeline step's visual state */
+    function updatePipelineStep(msg) {
+      const existing = state.pipelineSteps.find(s => s.step === msg.step);
+      if (existing) {
+        Object.assign(existing, msg);
+      } else {
+        state.pipelineSteps.push(msg);
+      }
+      renderPipeline();
+    }
+
+    /** Add a log line to the terminal */
+    function addLog(text, source) {
+      if (!text || !text.trim()) return;
+      state.logs.push({ text: text.trimEnd(), source });
+      // — Keep last 500 lines
+      if (state.logs.length > 500) state.logs.shift();
+      renderTerminal();
+    }
+
+    // =================================================================
+    // VIEWS
+    // =================================================================
+
+    /** Switch to a named view */
+    function showView(view) {
+      state.view = view;
+      switch (view) {
+        case 'home': renderHome(); break;
+        case 'wizard': renderWizardStep(); break;
+        case 'execute': renderExecution(); break;
+        case 'manage': loadDeployments(); break;
+      }
+    }
+
+    // — HOME VIEW ——————————————————————————————————————
+    function renderHome() {
+      document.getElementById('app').innerHTML = `
+        <div class="text-center" style="padding: 60px 0;">
+          <div style="font-size: 56px; margin-bottom: 24px;">&#128640;</div>
+          <h2 class="section-title" style="font-size: 28px;">Deploy TechStore</h2>
+          <p class="section-desc" style="max-width: 440px; margin: 8px auto 40px;">
+            Provision cloud infrastructure and deploy your store in minutes.
+            One wizard, zero manual SSH.
+          </p>
+          <button class="btn btn-primary btn-lg" onclick="startWizard()">
+            New Deployment
+          </button>
+        </div>
+      `;
+    }
+
+    // — START WIZARD ——————————————————————————————————
+    async function startWizard() {
+      // — Fetch provider schemas if not loaded
+      if (!state.providers) {
+        try {
+          const res = await fetch('/api/providers');
+          state.providers = await res.json();
+        } catch (err) {
+          alert('Failed to load provider data: ' + err.message);
+          return;
+        }
+      }
+
+      // — Generate JWT secret
+      if (!state.appConfig.jwtSecret) {
+        try {
+          const res = await fetch('/api/generate/secret');
+          const data = await res.json();
+          state.appConfig.jwtSecret = data.secret;
+        } catch { /* use empty, user can fill manually */ }
+      }
+
+      // — Default Postgres password = same as user (unless manually changed)
+      if (!state.appConfig.pgPassword) {
+        state.appConfig.pgPassword = state.appConfig.pgUser || 'techstore';
+      }
+
+      state.step = 1;
+      state.view = 'wizard';
+      renderWizardStep();
+    }
+
+    // =================================================================
+    // WIZARD STEPS
+    // =================================================================
+
+    function renderWizardStep() {
+      const app = document.getElementById('app');
+      // — Stepper header
+      const stepLabels = ['Infrastructure', 'Provider Config', 'Deploy Mode', 'App Config', 'Review'];
+      const stepperHTML = `
+        <div class="stepper">
+          ${stepLabels.map((label, i) => {
+            const num = i + 1;
+            const cls = num < state.step ? 'completed' : num === state.step ? 'active' : '';
+            const icon = num < state.step ? '&#10003;' : num;
+            return `
+              <div class="step-item ${cls}">
+                <div class="step-number">${icon}</div>
+                <span>${label}</span>
+              </div>
+              ${i < stepLabels.length - 1 ? '<div class="step-connector"></div>' : ''}
+            `;
+          }).join('')}
+        </div>
+      `;
+
+      // — Render current step content
+      let contentHTML = '';
+      switch (state.step) {
+        case 1: contentHTML = renderStep1(); break;
+        case 2: contentHTML = renderStep2(); break;
+        case 3: contentHTML = renderStep3(); break;
+        case 4: contentHTML = renderStep4(); break;
+        case 5: contentHTML = renderStep5(); break;
+      }
+
+      app.innerHTML = stepperHTML + contentHTML;
+    }
+
+    // — STEP 1: Choose infrastructure source ——————————
+    function renderStep1() {
+      return `
+        <h2 class="section-title">Infrastructure Source</h2>
+        <p class="section-desc">Create a new server via Terraform, or use an existing one.</p>
+
+        <div class="card card-selectable ${state.infraSource === 'terraform' ? 'selected' : ''}"
+             onclick="selectInfra('terraform')">
+          <h3>&#9729;&#65039; Create Server (Terraform)</h3>
+          <p>Provision a new VM on a cloud provider. Networking, firewall, and SSH are configured automatically.</p>
+        </div>
+
+        <div class="card card-selectable ${state.infraSource === 'existing' ? 'selected' : ''}"
+             onclick="selectInfra('existing')">
+          <h3>&#128421;&#65039; Existing Server</h3>
+          <p>I already have a VPS or server. Just provide the IP, SSH user, and key to proceed directly to deployment.</p>
+        </div>
+
+        <div class="flex-between mt-24">
+          <button class="btn" onclick="showView('home')">&#8592; Back</button>
+          <button class="btn btn-primary" onclick="nextStep()"
+                  ${!state.infraSource ? 'disabled' : ''}>Next &#8594;</button>
+        </div>
+      `;
+    }
+
+    function selectInfra(source) {
+      state.infraSource = source;
+      renderWizardStep();
+    }
+
+    // — STEP 2: Provider config form —————————————————
+    function renderStep2() {
+      if (state.infraSource === 'existing') {
+        return renderStep2Existing();
+      }
+      return renderStep2Terraform();
+    }
+
+    function renderStep2Terraform() {
+      // — Provider tab selector
+      const providers = state.providers.terraform;
+      const tabsHTML = `
+        <div class="tabs">
+          ${providers.map(p => `
+            <button class="tab ${state.provider === p.id ? 'active' : ''}"
+                    onclick="selectProvider('${p.id}')">${p.name}</button>
+          `).join('')}
+        </div>
+      `;
+
+      // — Selected provider form
+      const selected = providers.find(p => p.id === state.provider);
+      let formHTML = '<p class="text-dim text-sm">Select a cloud provider above.</p>';
+
+      if (selected) {
+        formHTML = `
+          <p class="text-dim text-sm mb-24">${selected.description}</p>
+          ${renderProviderForm(selected.fields)}
+        `;
+      }
+
+      return `
+        <h2 class="section-title">Cloud Provider</h2>
+        <p class="section-desc">Configure your cloud credentials and instance settings.</p>
+        ${tabsHTML}
+        <div class="card">${formHTML}</div>
+
+        <div class="flex-between mt-24">
+          <button class="btn" onclick="prevStep()">&#8592; Back</button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" onclick="validateTerraform()" id="btn-validate"
+                    ${!selected ? 'disabled' : ''}>&#9989; Validate Credentials</button>
+            <button class="btn btn-primary" onclick="nextStep()"
+                    ${!selected ? 'disabled' : ''}>Next &#8594;</button>
+          </div>
+        </div>
+        <div id="validation-result" class="mt-16"></div>
+      `;
+    }
+
+    function renderStep2Existing() {
+      const s = state.existingServer;
+      return `
+        <h2 class="section-title">Existing Server</h2>
+        <p class="section-desc">Provide SSH access details for your existing server.</p>
+        <div class="card">
+          <div class="form-group">
+            <label>Server IP <span class="required">*</span></label>
+            <input type="text" placeholder="143.47.118.165" value="${s.host}"
+                   onchange="state.existingServer.host = this.value">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>SSH User <span class="required">*</span></label>
+              <input type="text" placeholder="ubuntu" value="${s.user}"
+                     onchange="state.existingServer.user = this.value">
+            </div>
+            <div class="form-group">
+              <label>SSH Private Key Path <span class="required">*</span></label>
+              <input type="text" placeholder="C:/Users/you/Downloads/ssh-key.key" value="${s.keyPath}"
+                     onchange="state.existingServer.keyPath = this.value">
+              <small class="text-dim">Path to .key/.pem file. Full ssh commands also accepted.</small>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Label (optional)</label>
+              <input type="text" placeholder="my-production-server" value="${s.label || ''}"
+                     onchange="state.existingServer.label = this.value">
+              <small class="text-dim">Friendly name to identify this server in the manage view.</small>
+            </div>
+            <div class="form-group">
+              <label>Cloud Provider</label>
+              <select onchange="state.existingServer.cloudProvider = this.value">
+                <option value="" ${!s.cloudProvider ? 'selected' : ''}>— Select —</option>
+                <option value="Oracle Cloud" ${ s.cloudProvider === 'Oracle Cloud' ? 'selected' : ''}>Oracle Cloud (OCI)</option>
+                <option value="Google Cloud" ${ s.cloudProvider === 'Google Cloud' ? 'selected' : ''}>Google Cloud (GCP)</option>
+                <option value="AWS" ${ s.cloudProvider === 'AWS' ? 'selected' : ''}>AWS</option>
+                <option value="Azure" ${ s.cloudProvider === 'Azure' ? 'selected' : ''}>Azure</option>
+                <option value="DigitalOcean" ${ s.cloudProvider === 'DigitalOcean' ? 'selected' : ''}>DigitalOcean</option>
+                <option value="Hetzner" ${ s.cloudProvider === 'Hetzner' ? 'selected' : ''}>Hetzner</option>
+                <option value="Linode" ${ s.cloudProvider === 'Linode' ? 'selected' : ''}>Linode</option>
+                <option value="Self-hosted" ${ s.cloudProvider === 'Self-hosted' ? 'selected' : ''}>Self-hosted</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-between mt-24">
+          <button class="btn" onclick="prevStep()">&#8592; Back</button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" onclick="validateSSH()">&#9989; Test Connection</button>
+            <button class="btn" onclick="saveServer()">&#128190; Save Server</button>
+            <button class="btn btn-primary" onclick="nextStep()">Next &#8594;</button>
+          </div>
+        </div>
+        <div id="validation-result" class="mt-16"></div>
+      `;
+    }
+
+    function selectProvider(id) {
+      state.provider = id;
+      state.providerValues = {};
+      // — Pre-fill defaults
+      const provider = state.providers.terraform.find(p => p.id === id);
+      if (provider) {
+        for (const field of provider.fields) {
+          if (field.default !== undefined) {
+            state.providerValues[field.key] = field.default;
+          }
+        }
+      }
+      renderWizardStep();
+    }
+
+    /** Render form fields for a terraform provider */
+    function renderProviderForm(fields) {
+      return fields.map(f => {
+        const val = state.providerValues[f.key] ?? f.default ?? '';
+        const req = f.required ? '<span class="required">*</span>' : '';
+        const helpIcon = f.help
+          ? `<span class="help-icon" data-help="${escapeAttr(f.help)}">?</span>`
+          : '';
+
+        let input = '';
+        if (f.type === 'select' && f.options) {
+          input = `<select onchange="state.providerValues['${f.key}'] = this.value">
+            <option value="">Select...</option>
+            ${f.options.map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('')}
+          </select>`;
+        } else if (f.type === 'number') {
+          input = `<input type="number" value="${val}" placeholder="${f.default || ''}"
+                          onchange="state.providerValues['${f.key}'] = Number(this.value)">`;
+        } else {
+          input = `<input type="text" value="${val}" placeholder="${f.default || ''}"
+                          onchange="state.providerValues['${f.key}'] = this.value">`;
+        }
+
+        return `<div class="form-group">
+          <label>${f.label} ${req} ${helpIcon}</label>
+          ${input}
+        </div>`;
+      }).join('');
+    }
+
+    // — STEP 3: Choose deploy mode ————————————————————
+    function renderStep3() {
+      const modes = state.providers.deployModes;
+      return `
+        <h2 class="section-title">Deploy Mode</h2>
+        <p class="section-desc">Choose how the application will run on the server.</p>
+
+        ${modes.map(m => `
+          <div class="card card-selectable ${state.deployMode === m.id ? 'selected' : ''}"
+               onclick="state.deployMode = '${m.id}'; renderWizardStep();">
+            <h3>${m.name}${m.recommended ? '<span class="badge badge-green">RECOMMENDED</span>' : ''}</h3>
+            <p>${m.description}</p>
+          </div>
+        `).join('')}
+
+        <div class="flex-between mt-24">
+          <button class="btn" onclick="prevStep()">&#8592; Back</button>
+          <button class="btn btn-primary" onclick="nextStep()"
+                  ${!state.deployMode ? 'disabled' : ''}>Next &#8594;</button>
+        </div>
+      `;
+    }
+
+    // — STEP 4: Application config ————————————————————
+    function renderStep4() {
+      const c = state.appConfig;
+      const isDocker = state.deployMode === 'docker';
+      const isSupabase = state.deployMode === 'native-supabase';
+
+      return `
+        <h2 class="section-title">Application Config</h2>
+        <p class="section-desc">Configure your application environment variables.</p>
+
+        <div class="card">
+          <h3 style="margin-bottom: 16px;">Required</h3>
+          <div class="form-group">
+            <label>JWT Secret <span class="required">*</span>
+              <span class="help-icon" data-help="Secret key for signing auth tokens. Auto-generated for you.">?</span>
+            </label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" value="${c.jwtSecret}"
+                     onchange="state.appConfig.jwtSecret = this.value" style="font-family: monospace; font-size: 12px;">
+              <button class="btn" onclick="regenerateJWT()" style="white-space: nowrap;">&#x1F504; Regenerate</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Site Domain
+                <span class="help-icon" data-help="Your domain name (e.g. eonsclover.com). Leave empty to access by IP.">?</span>
+              </label>
+              <input type="text" placeholder="example.com" value="${c.domain}"
+                     onchange="state.appConfig.domain = this.value">
+            </div>
+            <div class="form-group">
+              <label>SSL Mode</label>
+              <select onchange="state.appConfig.sslMode = this.value; renderView();">
+                <option value="flexible" ${c.sslMode === 'flexible' ? 'selected' : ''}>Flexible (No SSL cert)</option>
+                <option value="full_strict" ${c.sslMode === 'full_strict' ? 'selected' : ''}>Full Strict (Cloudflare Origin Cert)</option>
+              </select>
+            </div>
+          </div>
+          ${c.sslMode === 'full_strict' ? `
+          <div class="form-row" style="margin-top: 8px;">
+            <div class="form-group">
+              <label>SSL Cert File (local path)
+                <span class="help-icon" data-help="Path to Cloudflare Origin .pem file on your local machine. Leave empty if certs are already on the server.">?</span>
+              </label>
+              <input type="text" placeholder="C:\\Users\\Robert\\ssl-tmp\\eonsclover.com.pem"
+                     value="${c.sslCertFile}" onchange="state.appConfig.sslCertFile = this.value"
+                     style="font-family: monospace; font-size: 11px;">
+            </div>
+            <div class="form-group">
+              <label>SSL Key File (local path)
+                <span class="help-icon" data-help="Path to Cloudflare Origin .key file on your local machine. Leave empty if certs are already on the server.">?</span>
+              </label>
+              <input type="text" placeholder="C:\\Users\\Robert\\ssl-tmp\\eonsclover.com.key"
+                     value="${c.sslKeyFile}" onchange="state.appConfig.sslKeyFile = this.value"
+                     style="font-family: monospace; font-size: 11px;">
+            </div>
+          </div>
+          ` : ''}
+        </div>
+
+        <!-- Database config -->
+        <div class="card">
+          <h3 style="margin-bottom: 16px;">Database ${isDocker ? '(Docker PostgreSQL)' : '(Supabase)'}</h3>
+          ${isDocker ? `
+            <div class="form-row-3">
+              <div class="form-group">
+                <label>Postgres User</label>
+                <input type="text" value="${c.pgUser}" onchange="state.appConfig.pgUser = this.value">
+              </div>
+              <div class="form-group">
+                <label>Postgres Password <span class="required">*</span></label>
+                <input type="text" value="${c.pgPassword}" onchange="state.appConfig.pgPassword = this.value"
+                       style="font-family: monospace; font-size: 12px;">
+              </div>
+              <div class="form-group">
+                <label>Database Name</label>
+                <input type="text" value="${c.pgDb}" onchange="state.appConfig.pgDb = this.value">
+              </div>
+            </div>
+          ` : `
+            <div class="form-group">
+              <label>Supabase URL <span class="required">*</span>
+                <span class="help-icon" data-help="Supabase project URL: Settings → API → Project URL">?</span>
+              </label>
+              <input type="text" placeholder="https://xxx.supabase.co" value="${c.supabaseUrl}"
+                     onchange="state.appConfig.supabaseUrl = this.value">
+            </div>
+            <div class="form-group">
+              <label>Supabase Key <span class="required">*</span>
+                <span class="help-icon" data-help="Supabase anon/service key: Settings → API → anon key">?</span>
+              </label>
+              <input type="text" placeholder="eyJ..." value="${c.supabaseKey}"
+                     onchange="state.appConfig.supabaseKey = this.value">
+            </div>
+          `}
+        </div>
+
+        <!-- Optional: Email -->
+        <div class="card">
+          <label class="checkbox-group">
+            <input type="checkbox" id="chk-email" ${c.emailUser ? 'checked' : ''}
+                   onchange="toggleOptionalSection('email', this.checked)">
+            Configure Email (SMTP) — optional, can be set later from Admin Panel
+          </label>
+          <div id="section-email" class="${c.emailUser ? '' : 'hidden'}">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Email User (SMTP)</label>
+                <input type="text" placeholder="user@gmail.com" value="${c.emailUser}"
+                       onchange="state.appConfig.emailUser = this.value">
+              </div>
+              <div class="form-group">
+                <label>Email Password (App Password)</label>
+                <input type="password" placeholder="app password" value="${c.emailPass}"
+                       onchange="state.appConfig.emailPass = this.value">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-between mt-24">
+          <button class="btn" onclick="prevStep()">&#8592; Back</button>
+          <button class="btn btn-primary" onclick="nextStep()">Next &#8594;</button>
+        </div>
+      `;
+    }
+
+    // — STEP 5: Review & confirm ——————————————————————
+    function renderStep5() {
+      const c = state.appConfig;
+      const providerName = state.infraSource === 'terraform'
+        ? (state.providers.terraform.find(p => p.id === state.provider)?.name || state.provider)
+        : 'Existing Server';
+      const modeName = state.providers.deployModes.find(m => m.id === state.deployMode)?.name || state.deployMode;
+
+      const infraRows = state.infraSource === 'terraform'
+        ? Object.entries(state.providerValues)
+            .filter(([_, v]) => v !== undefined && v !== '')
+            .map(([k, v]) => `<tr><td>${k}</td><td>${typeof v === 'string' && v.length > 40 ? v.slice(0, 20) + '...' : v}</td></tr>`)
+            .join('')
+        : `<tr><td>IP</td><td>${state.existingServer.host}</td></tr>
+           <tr><td>User</td><td>${state.existingServer.user}</td></tr>`;
+
+      return `
+        <h2 class="section-title">Review & Deploy</h2>
+        <p class="section-desc">Verify everything before launching the deployment pipeline.</p>
+
+        <div class="card">
+          <table class="summary-table">
+            <tr><td class="summary-section" colspan="2">Infrastructure</td></tr>
+            <tr><td>Source</td><td>${providerName}</td></tr>
+            ${infraRows}
+
+            <tr><td class="summary-section" colspan="2">Deploy Mode</td></tr>
+            <tr><td>Mode</td><td>${modeName}</td></tr>
+
+            <tr><td class="summary-section" colspan="2">Application</td></tr>
+            <tr><td>Domain</td><td>${c.domain || '(access by IP)'}</td></tr>
+            <tr><td>SSL</td><td>${c.sslMode}${c.sslMode === 'full_strict' && c.sslCertFile ? ' (certs provided)' : c.sslMode === 'full_strict' ? ' (use existing certs)' : ''}</td></tr>
+            <tr><td>JWT Secret</td><td style="font-family: monospace; font-size: 11px;">${c.jwtSecret.slice(0, 16)}...</td></tr>
+            ${state.deployMode === 'docker' ? `
+              <tr><td>DB</td><td>PostgreSQL (Docker container)</td></tr>
+              <tr><td>PG User</td><td>${c.pgUser}</td></tr>
+            ` : `
+              <tr><td>DB</td><td>Supabase</td></tr>
+              <tr><td>Supabase URL</td><td>${c.supabaseUrl ? c.supabaseUrl.slice(0, 30) + '...' : '(not set)'}</td></tr>
+            `}
+            ${c.emailUser ? `<tr><td>Email</td><td>${c.emailUser}</td></tr>` : ''}
+
+            <tr><td class="summary-section" colspan="2">Pipeline</td></tr>
+            <tr><td>Step 1</td><td>${state.infraSource === 'terraform' ? 'terraform apply → Create VM' : 'Skip (existing server)'}</td></tr>
+            <tr><td>Step 2</td><td>Test SSH connectivity</td></tr>
+            <tr><td>Step 3</td><td>ansible-playbook → Deploy app</td></tr>
+            <tr><td>Step 4</td><td>Health check → Verify app responds</td></tr>
+          </table>
+        </div>
+
+        <p class="text-dim text-sm text-center">Estimated time: 8-15 minutes</p>
+
+        <div class="flex-between mt-24">
+          <button class="btn" onclick="prevStep()">&#8592; Back</button>
+          <button class="btn btn-primary btn-lg" onclick="startDeploy()">&#128640; Deploy Now</button>
+        </div>
+      `;
+    }
+
+    // =================================================================
+    // WIZARD NAVIGATION
+    // =================================================================
+    function nextStep() {
+      // — Skip step 2 provider form details aren't needed for some flows
+      if (state.step === 1 && state.infraSource === 'existing') {
+        // — Existing server goes to step 2 (server details form)
+      }
+      if (state.step < 5) {
+        state.step++;
+        renderWizardStep();
+      }
+    }
+
+    function prevStep() {
+      if (state.step > 1) {
+        state.step--;
+        renderWizardStep();
+      } else {
+        showView('home');
+      }
+    }
+
+    // =================================================================
+    // VALIDATION
+    // =================================================================
+    async function validateTerraform() {
+      const el = document.getElementById('validation-result');
+      const btn = document.getElementById('btn-validate');
+      btn.disabled = true;
+      btn.textContent = 'Validating...';
+      el.innerHTML = '<p class="text-dim text-sm">Running terraform plan (dry-run)...</p>';
+
+      try {
+        const res = await fetch('/api/validate/terraform', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: state.provider, values: state.providerValues })
+        });
+        const data = await res.json();
+        if (data.success) {
+          el.innerHTML = `<p style="color: var(--green);">&#9989; ${data.message}</p>`;
+        } else {
+          let html = `<p style="color: var(--red);">&#10060; ${data.message}</p>`;
+          if (data.troubleshoot) {
+            html += renderTroubleshoot(data.troubleshoot);
+          }
+          el.innerHTML = html;
+        }
+      } catch (err) {
+        el.innerHTML = `<p style="color: var(--red);">&#10060; ${err.message}</p>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✅ Validate Credentials';
+      }
+    }
+
+    async function validateSSH() {
+      const el = document.getElementById('validation-result');
+      el.innerHTML = '<p class="text-dim text-sm">Testing SSH connection...</p>';
+
+      try {
+        const res = await fetch('/api/validate/ssh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(state.existingServer)
+        });
+        const data = await res.json();
+        if (data.success) {
+          el.innerHTML = `<p style="color: var(--green);">&#9989; ${data.message} (${data.os})</p>`;
+        } else {
+          let html = `<p style="color: var(--red);">&#10060; ${data.message}</p>`;
+          if (data.troubleshoot) html += renderTroubleshoot(data.troubleshoot);
+          el.innerHTML = html;
+        }
+      } catch (err) {
+        el.innerHTML = `<p style="color: var(--red);">&#10060; ${err.message}</p>`;
+      }
+    }
+
+    /** Save existing server to deployments without running the deploy pipeline */
+    async function saveServer() {
+      const el = document.getElementById('validation-result');
+      const s = state.existingServer;
+      if (!s.host || !s.keyPath) {
+        el.innerHTML = '<p style="color: var(--red);">&#10060; IP and key path are required.</p>';
+        return;
+      }
+      el.innerHTML = '<p class="text-dim text-sm">Testing connection and saving...</p>';
+
+      try {
+        const res = await fetch('/api/servers/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host: s.host,
+            user: s.user,
+            keyPath: s.keyPath,
+            label: s.label || '',
+            cloudProvider: s.cloudProvider || ''
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          el.innerHTML = `
+            <p style="color: var(--green);">&#9989; ${data.message}</p>
+            <p class="text-dim text-sm mt-16">Server saved. You can find it in <a href="#" onclick="showView('manage'); return false;" style="color: var(--primary);">Manage Existing</a> or continue to deploy.</p>
+          `;
+        } else {
+          let html = `<p style="color: var(--red);">&#10060; ${data.message}</p>`;
+          if (data.troubleshoot) html += renderTroubleshoot(data.troubleshoot);
+          el.innerHTML = html;
+        }
+      } catch (err) {
+        el.innerHTML = `<p style="color: var(--red);">&#10060; ${err.message}</p>`;
+      }
+    }
+
+    // =================================================================
+    // DEPLOY EXECUTION
+    // =================================================================
+    async function startDeploy() {
+      // — Reset execution state
+      state.pipelineSteps = [];
+      state.logs = [];
+      state.deployResult = null;
+      state.error = null;
+      state.view = 'execute';
+      renderExecution();
+
+      // — Fire deploy request (async — results come via WebSocket)
+      try {
+        await fetch('/api/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            infraSource: state.infraSource,
+            provider: state.provider,
+            providerValues: state.providerValues,
+            existingServer: state.existingServer,
+            deployMode: state.deployMode,
+            appConfig: state.appConfig
+          })
+        });
+      } catch (err) {
+        state.error = { message: err.message };
+        renderExecutionError();
+      }
+    }
+
+    // — EXECUTION VIEW ———————————————————————————————
+    function renderExecution() {
+      document.getElementById('app').innerHTML = `
+        <h2 class="section-title">Deploying...</h2>
+        <p class="section-desc">Pipeline is running. Do not close this window.</p>
+
+        <div id="pipeline" class="pipeline card">
+          ${renderPipelineSteps()}
+        </div>
+
+        <div class="card" style="padding: 0;">
+          <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <span class="text-dim text-sm">Live Output</span>
+            <button class="btn" style="padding: 4px 12px; font-size: 12px;" onclick="copyLogs()">&#128203; Copy Log</button>
+          </div>
+          <div class="terminal" id="terminal"></div>
+        </div>
+
+        <div id="troubleshoot-panel"></div>
+      `;
+    }
+
+    function renderPipelineSteps() {
+      const steps = [
+        { step: 1, label: state.infraSource === 'terraform' ? 'Terraform Apply' : 'Infrastructure' },
+        { step: 2, label: 'SSH Connectivity' },
+        { step: 3, label: 'Ansible Deploy' },
+        { step: 4, label: 'Health Check' }
+      ];
+
+      return steps.map(s => {
+        const live = state.pipelineSteps.find(p => p.step === s.step);
+        const status = live?.status || 'pending';
+        const detail = live?.detail || '';
+        const label = live?.label || s.label;
+        const icons = {
+          pending: '&#9675;',
+          running: '&#9881;',
+          completed: '&#10003;',
+          skipped: '&#8722;',
+          failed: '&#10007;'
+        };
+
+        return `
+          <div class="pipeline-step">
+            <div class="pipeline-icon ${status}">${icons[status]}</div>
+            <div>
+              <div class="pipeline-label">Step ${s.step}/4 — ${label}</div>
+              ${detail ? `<div class="pipeline-detail">${detail}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderPipeline() {
+      const el = document.getElementById('pipeline');
+      if (el) el.innerHTML = renderPipelineSteps();
+    }
+
+    function renderTerminal() {
+      const el = document.getElementById('terminal');
+      if (!el) return;
+      const html = state.logs.map(l => {
+        const cls = l.source ? `line-${l.source}` : '';
+        return `<div class="${cls}">${escapeHTML(l.text)}</div>`;
+      }).join('');
+      el.innerHTML = html;
+      // — Auto-scroll to bottom
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // — EXECUTION COMPLETE ————————————————————————————
+    function renderExecutionComplete() {
+      const r = state.deployResult;
+      if (!r) return;
+
+      const d = r.deployment || {};
+      const hasDeployment = !!(d.serverIP);
+      const app = document.getElementById('app');
+
+      // -- Generic success (destroy, wipe, quick-action) --
+      if (!hasDeployment) {
+        app.innerHTML = `
+          <div class="card success-box">
+            <div class="icon">&#9989;</div>
+            <h2>Operation Complete</h2>
+            <p class="text-dim">${escapeHTML(r.message || 'Done.')}</p>
+            <div class="mt-24" style="display: flex; gap: 12px; justify-content: center;">
+              <button class="btn btn-primary" onclick="showView('home')">&#127968; Home</button>
+              <button class="btn" onclick="showView('manage')">Manage Deployments</button>
+            </div>
+          </div>`;
+        return;
+      }
+
+      // -- Deploy / Redeploy success with server details --
+      const url = d.domain ? `https://${d.domain}` : `http://${d.serverIP}`;
+      app.innerHTML = `
+        <div class="card success-box">
+          <div class="icon">&#9989;</div>
+          <h2>Deployment Complete!</h2>
+          <p class="text-dim">Your TechStore is live and running.</p>
+
+          <div class="info-grid">
+            <div class="info-item"><span>App URL</span><a href="${url}" target="_blank" style="color: var(--primary);">${url}</a></div>
+            <div class="info-item"><span>Admin Panel</span><a href="${url}/admin" target="_blank" style="color: var(--primary);">${url}/admin</a></div>
+            <div class="info-item"><span>SSH Command</span><code style="font-size: 12px;">ssh ${d.sshUser}@${d.serverIP}</code></div>
+            <div class="info-item"><span>Deploy Mode</span>${d.deployMode}</div>
+          </div>
+
+          <div class="card" style="text-align: left; background: rgba(251,191,36,0.05); border-color: rgba(251,191,36,0.3);">
+            <p style="font-size: 13px; color: var(--yellow);">&#9888;&#65039; Default Admin: admin@techstore.com / admin123 — change immediately!</p>
+          </div>
+
+          ${r.nextSteps ? `
+            <ol class="next-steps">
+              ${r.nextSteps.map(s => `<li>${s}</li>`).join('')}
+            </ol>
+          ` : ''}
+
+          <div class="mt-24" style="display: flex; gap: 12px; justify-content: center;">
+            <button class="btn btn-primary" onclick="showView('home')">&#127968; Home</button>
+            <button class="btn" onclick="showView('manage')">Manage Deployments</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // — EXECUTION ERROR ——————————————————————————————
+    function renderExecutionError() {
+      const e = state.error;
+      if (!e) return;
+
+      const panel = document.getElementById('troubleshoot-panel');
+      if (panel) {
+        let html = `
+          <div class="troubleshoot">
+            <h4>&#10060; Deployment Failed</h4>
+            <p style="margin-bottom: 12px; font-size: 13px;">${escapeHTML(e.message)}</p>
+        `;
+
+        if (e.troubleshoot) {
+          html += `
+            <h4 style="color: var(--yellow); margin-bottom: 8px;">&#128295; ${e.troubleshoot.title}</h4>
+            <ul>${e.troubleshoot.fixes.map(f => `<li>${escapeHTML(f)}</li>`).join('')}</ul>
+          `;
+        }
+
+        html += `
+          <div class="mt-16" style="display: flex; gap: 8px;">
+            <button class="btn" onclick="startDeploy()">&#128260; Retry</button>
+            <button class="btn" onclick="copyLogs()">&#128203; Copy Full Log</button>
+            <button class="btn btn-danger" onclick="showView('home')">&#128721; Abort</button>
+          </div>
+        </div>`;
+
+        panel.innerHTML = html;
+      }
+    }
+
+    // =================================================================
+    // MANAGE VIEW
+    // =================================================================
+    async function loadDeployments() {
+      try {
+        const res = await fetch('/api/deployments');
+        state.deployments = await res.json();
+      } catch { state.deployments = []; }
+      renderManage();
+    }
+
+    function renderManage() {
+      const app = document.getElementById('app');
+
+      if (state.deployments.length === 0) {
+        app.innerHTML = `
+          <h2 class="section-title">Manage Deployments</h2>
+          <p class="section-desc">No saved servers or deployments yet.</p>
+          <button class="btn btn-primary" onclick="showView('home')">&#8592; Back to Home</button>
+        `;
+        return;
+      }
+
+      app.innerHTML = `
+        <div class="flex-between mb-24">
+          <div>
+            <h2 class="section-title">Manage Servers</h2>
+            <p class="section-desc" style="margin-bottom: 0;">Check status, deploy, redeploy, or remove saved servers.</p>
+          </div>
+          <button class="btn" onclick="showView('home')">&#8592; Home</button>
+        </div>
+
+        ${state.deployments.map(d => {
+          // — Status dot color
+          const statusColors = { online: 'var(--green)', 'ssh-only': 'var(--yellow)', offline: 'var(--red)' };
+          const dotColor = statusColors[d.lastStatus] || 'var(--text-dim)';
+          const statusLabel = d.lastStatus || 'unknown';
+          const isRegistered = d.status === 'registered';
+          const isDocker = d.deployMode === 'docker';
+          const modeLabel = d.deployMode || 'not deployed';
+          const si = d.systemInfo;
+          // — Remember expanded state
+          const isOpen = state._expandedServers?.includes(d.id);
+
+          return `
+            <div class="card" style="padding: 0; margin-bottom: 16px;">
+              <div class="deployment-card" onclick="toggleServer('${d.id}', event)">
+                <div class="left">
+                  <span class="chevron ${isOpen ? 'open' : ''}" id="chevron-${d.id}">&#9654;</span>
+                  <div class="dot" style="background: ${dotColor};" title="${statusLabel}"></div>
+                  <div>
+                    <strong>${d.domain || d.serverIP}</strong>
+                    ${isRegistered ? '<span class="badge">SAVED</span>' : '<span class="badge badge-green">DEPLOYED</span>'}
+                    ${d.cloudProvider ? `<span class="badge" style="background: rgba(79,140,255,0.15); color: var(--primary);">${d.cloudProvider}</span>` : ''}
+                    <div class="text-dim text-sm">
+                      ${d.serverIP} &middot; ${modeLabel}
+                      ${d.os ? ' &middot; ' + d.os : ''}
+                      &middot; ${new Date(d.createdAt).toLocaleDateString()}
+                    </div>
+                    ${d.lastChecked ? `<div class="text-dim" style="font-size: 11px;">Last checked: ${new Date(d.lastChecked).toLocaleString()} &mdash; ${statusLabel}</div>` : ''}
+                  </div>
+                </div>
+                <div class="right" style="flex-wrap: wrap; gap: 6px;" onclick="event.stopPropagation()">
+                  <button class="btn" onclick="checkStatus('${d.id}')" id="btn-status-${d.id}">&#128994; Status</button>
+                  ${isRegistered
+                    ? `<button class="btn btn-primary" onclick="deployRegistered('${d.id}')">&#128640; Deploy</button>`
+                    : `<button class="btn" onclick="redeployById('${d.id}')">&#128260; Redeploy</button>`
+                  }
+                  ${d.infraSource === 'terraform' ? `<button class="btn btn-danger" onclick="destroyById('${d.id}')">&#128465; Destroy</button>` : ''}
+                  <button class="btn btn-danger" onclick="deleteDeployment('${d.id}')" style="padding: 10px 12px;" title="Remove from list">&#10007;</button>
+                </div>
+              </div>
+              <div class="server-body ${isOpen ? 'open' : ''}" id="server-body-${d.id}">
+                ${si ? renderVMDetail(d.id, si, d) : `<div id="vm-detail-${d.id}"></div>`}
+
+                <!-- Quick actions (mode-aware) -->
+                ${!isRegistered ? `
+                <div class="quick-actions">
+                  <h4>${isDocker ? '🐳 Docker' : '⚙️ Native'} Quick Actions</h4>
+                  <div class="quick-actions-row">
+                    ${isDocker ? `
+                      <button class="btn" onclick="quickAction('${d.id}','compose-restart')" title="Restart all containers">🔄 Restart</button>
+                      <button class="btn" onclick="quickAction('${d.id}','refresh-docker')" title="Git pull + rebuild + restart containers">📥 Pull & Rebuild</button>
+                      <button class="btn" onclick="quickAction('${d.id}','compose-up')" title="Start containers (docker compose up -d)">▶️ Compose Up</button>
+                      <button class="btn btn-warn" onclick="quickAction('${d.id}','compose-down')" title="Stop containers (docker compose down)">⏹️ Compose Down</button>
+                    ` : `
+                      <button class="btn" onclick="quickAction('${d.id}','pm2-restart')" title="Restart all PM2 processes">🔄 PM2 Restart</button>
+                      <button class="btn" onclick="quickAction('${d.id}','refresh-native')" title="Git pull + npm install + build + PM2 restart">📥 Pull & Refresh</button>
+                      <button class="btn btn-warn" onclick="quickAction('${d.id}','pm2-stop')" title="Stop all PM2 processes">⏹️ PM2 Stop</button>
+                    `}
+                    <button class="btn" onclick="quickAction('${d.id}','nginx-reload')" title="Test and reload Nginx config">🌐 Nginx Reload</button>
+                  </div>
+                </div>
+                ` : ''}
+
+                <!-- Data management actions -->
+                <div style="padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; flex-wrap: wrap;">
+                  ${!isRegistered ? `<button class="btn" onclick="backupDB('${d.id}')" id="btn-backup-${d.id}" title="Download database backup">&#128190; Backup DB</button>` : ''}
+                  ${!isRegistered ? `<button class="btn" onclick="showRestoreModal('${d.id}')" title="Restore database from a backup file">&#128260; Restore DB</button>` : ''}
+                  <button class="btn btn-danger" onclick="wipeServerById('${d.id}')" title="Stop all services and remove app data (keeps VM)">&#128465; Wipe Server</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      `;
+    }
+
+    /** Render the expanded VM detail panel with system info */
+    function renderVMDetail(id, si, d) {
+      // — RAM progress bar color
+      const ramPct = si.ramPercent || 0;
+      const ramColor = ramPct > 85 ? 'var(--red)' : ramPct > 60 ? 'var(--yellow)' : 'var(--green)';
+
+      // — Root disk usage
+      const rootDisk = si.disks?.find(dk => dk.mount === '/') || si.disks?.[0] || {};
+      const diskPct = parseInt(rootDisk.percent) || 0;
+      const diskColor = diskPct > 85 ? 'var(--red)' : diskPct > 60 ? 'var(--yellow)' : 'var(--green)';
+
+      // — Services running
+      const services = [];
+      if (si.nginx && si.nginx !== 'not installed') services.push({ name: 'Nginx', active: si.nginx === 'active' });
+      if (si.docker) services.push({ name: 'Docker', active: true, count: si.docker.length });
+      if (si.pm2) services.push({ name: 'PM2', active: true, count: si.pm2.length });
+
+      return `
+        <div class="vm-detail" id="vm-detail-${id}">
+          <div class="vm-grid">
+            <!-- CPU -->
+            <div class="vm-stat">
+              <div class="stat-label">CPU</div>
+              <div class="stat-value">${si.cpuCores || '?'} core${si.cpuCores !== 1 ? 's' : ''}</div>
+              <div class="stat-sub">${si.cpuArch || ''} ${si.cpuModel ? '&middot; ' + si.cpuModel : ''}</div>
+              <div class="stat-sub">Load: ${si.load1} / ${si.load5} / ${si.load15}</div>
+            </div>
+
+            <!-- RAM -->
+            <div class="vm-stat">
+              <div class="stat-label">Memory</div>
+              <div class="stat-value">${formatMB(si.ramUsedMB)} / ${formatMB(si.ramTotalMB)}</div>
+              <div class="stat-sub">${si.ramFreeMB ? formatMB(si.ramFreeMB) + ' free' : ''} &middot; ${ramPct}% used</div>
+              <div class="progress-bar"><div class="fill" style="width:${ramPct}%; background:${ramColor};"></div></div>
+              ${si.swapTotalMB ? `<div class="stat-sub">Swap: ${formatMB(si.swapUsedMB)} / ${formatMB(si.swapTotalMB)}</div>` : ''}
+            </div>
+
+            <!-- Disk -->
+            <div class="vm-stat">
+              <div class="stat-label">Disk (${rootDisk.mount || '/'})</div>
+              <div class="stat-value">${rootDisk.used || '?'} / ${rootDisk.size || '?'}</div>
+              <div class="stat-sub">${rootDisk.avail || '?'} available &middot; ${rootDisk.percent || '?'} used</div>
+              <div class="progress-bar"><div class="fill" style="width:${diskPct}%; background:${diskColor};"></div></div>
+            </div>
+
+            <!-- Uptime -->
+            <div class="vm-stat">
+              <div class="stat-label">Uptime</div>
+              <div class="stat-value">${si.uptime ? si.uptime.replace('up ', '') : 'unknown'}</div>
+              <div class="stat-sub">${si.hostname || ''}</div>
+              <div class="stat-sub">Kernel: ${si.kernel || '?'}</div>
+            </div>
+          </div>
+
+          <!-- Additional disks (if any beyond root) -->
+          ${si.disks && si.disks.length > 1 ? `
+            <div style="margin-bottom:12px;">
+              <div style="font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-dim);">ALL PARTITIONS</div>
+              <table class="summary-table">
+                <tr><td>Device</td><td>Size</td><td>Used</td><td>Avail</td><td>Use%</td><td>Mount</td></tr>
+                ${si.disks.map(dk => `<tr><td>${dk.device}</td><td>${dk.size}</td><td>${dk.used}</td><td>${dk.avail}</td><td>${dk.percent}</td><td>${dk.mount}</td></tr>`).join('')}
+              </table>
+            </div>
+          ` : ''}
+
+          <!-- Services -->
+          ${services.length ? `
+            <div style="font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-dim);">SERVICES</div>
+            <div class="services-list">
+              ${services.map(s => `
+                <span class="service-badge">
+                  <span class="svc-dot" style="background: ${s.active ? 'var(--green)' : 'var(--red)'};"></span>
+                  ${s.name}${s.count ? ' (' + s.count + ')' : ''}
+                </span>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <!-- Docker containers (collapsible) -->
+          ${si.docker && si.docker.length ? `
+            <div class="collapse-toggle" onclick="toggleCollapse(this)">
+              <span class="arrow">&#9654;</span> DOCKER CONTAINERS (${si.docker.length})
+            </div>
+            <div class="collapse-body">
+              ${si.docker.map(c => {
+                const isUp = c.toLowerCase().includes('up');
+                return `<div class="text-sm svc-row">
+                  <span style="color:${isUp ? 'var(--green)' : 'var(--red)'};">&#9679;</span> ${escapeHTML(c)}
+                </div>`;
+              }).join('')}
+            </div>
+          ` : ''}
+
+          <!-- PM2 processes (collapsible) -->
+          ${si.pm2 && si.pm2.length ? `
+            <div class="collapse-toggle" onclick="toggleCollapse(this)">
+              <span class="arrow">&#9654;</span> PM2 PROCESSES (${si.pm2.length})
+            </div>
+            <div class="collapse-body">
+              ${si.pm2.map(p => {
+                const isOnline = p.status === 'online';
+                const mem = p.memory ? (p.memory / 1024 / 1024).toFixed(1) + ' MB' : '';
+                return `<div class="text-sm svc-row">
+                  <span style="color:${isOnline ? 'var(--green)' : 'var(--red)'};">&#9679;</span>
+                  ${escapeHTML(p.name)} &mdash; ${p.status}${mem ? ' &middot; ' + mem : ''}${p.cpu ? ' &middot; CPU ' + p.cpu + '%' : ''}
+                </div>`;
+              }).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    /** Format MB to human-readable (MB or GB) */
+    function formatMB(mb) {
+      if (!mb && mb !== 0) return '?';
+      if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB';
+      return mb + ' MB';
+    }
+
+    /** Toggle collapsible sections (Docker, PM2) */
+    function toggleCollapse(el) {
+      const arrow = el.querySelector('.arrow');
+      const body = el.nextElementSibling;
+      if (body.classList.contains('open')) {
+        body.classList.remove('open');
+        arrow.classList.remove('open');
+      } else {
+        body.classList.add('open');
+        arrow.classList.add('open');
+      }
+    }
+
+    /** Toggle a server card body open/closed */
+    function toggleServer(id, event) {
+      // — Don't toggle if clicking buttons
+      if (event.target.closest('.right')) return;
+      const body = document.getElementById(`server-body-${id}`);
+      const chevron = document.getElementById(`chevron-${id}`);
+      if (!body) return;
+      // — Persist expanded state in memory
+      if (!state._expandedServers) state._expandedServers = [];
+      if (body.classList.contains('open')) {
+        body.classList.remove('open');
+        chevron?.classList.remove('open');
+        state._expandedServers = state._expandedServers.filter(s => s !== id);
+      } else {
+        body.classList.add('open');
+        chevron?.classList.add('open');
+        state._expandedServers.push(id);
+      }
+    }
+
+    async function redeployById(id) {
+      state.pipelineSteps = [];
+      state.logs = [];
+      state.deployResult = null;
+      state.error = null;
+      state.view = 'execute';
+      renderExecution();
+
+      try {
+        await fetch(`/api/redeploy/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appConfig: state.appConfig })
+        });
+      } catch (err) {
+        state.error = { message: err.message };
+        renderExecutionError();
+      }
+    }
+
+    async function destroyById(id) {
+      const d = state.deployments.find(dd => dd.id === id);
+      if (!d) return;
+      if (!confirm(`Destroy infrastructure for ${d.domain || d.serverIP}? This will terminate the VM and all data.`)) return;
+
+      state.pipelineSteps = [];
+      state.logs = [];
+      state.view = 'execute';
+      renderExecution();
+
+      try {
+        await fetch(`/api/destroy/${id}`, { method: 'POST' });
+      } catch (err) {
+        state.error = { message: err.message };
+        renderExecutionError();
+      }
+    }
+
+    async function deleteDeployment(id) {
+      if (!confirm('Remove this deployment from the list?')) return;
+      await fetch(`/api/deployments/${id}`, { method: 'DELETE' });
+      loadDeployments();
+    }
+
+    /** Quick action: run a lightweight server command (restart, pull, compose up/down, etc.) */
+    async function quickAction(id, action) {
+      const d = state.deployments.find(dd => dd.id === id);
+      if (!d) return;
+      const label = d.domain || d.serverIP;
+
+      // Human-readable labels for confirmation
+      const labels = {
+        'compose-up':      'Start Docker containers',
+        'compose-down':    'Stop Docker containers',
+        'compose-restart': 'Restart Docker containers',
+        'refresh-docker':  'Git Pull & Rebuild (Docker)',
+        'refresh-native':  'Git Pull & Refresh (Native)',
+        'pm2-restart':     'Restart PM2 processes',
+        'pm2-stop':        'Stop PM2 processes',
+        'nginx-reload':    'Reload Nginx config',
+      };
+      const actionLabel = labels[action] || action;
+
+      // Dangerous actions require confirmation
+      const dangerous = ['compose-down', 'pm2-stop'];
+      if (dangerous.includes(action)) {
+        if (!confirm(`⚠️ ${actionLabel} on ${label}?\n\nThis will make the site temporarily unavailable.`)) return;
+      }
+
+      // Switch to execution view with live logs
+      state.pipelineSteps = [{ step: 1, label: actionLabel, status: 'running' }];
+      state.logs = [];
+      state.deployResult = null;
+      state.error = null;
+      state.view = 'execute';
+      renderExecution();
+
+      try {
+        await fetch(`/api/quick-action/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+      } catch (err) {
+        state.error = { message: err.message };
+        renderExecutionError();
+      }
+    }
+
+    /** Wipe a server: stop services, remove app data, keep the VM */
+    async function wipeServerById(id) {
+      const d = state.deployments.find(dd => dd.id === id);
+      if (!d) return;
+      const label = d.domain || d.serverIP;
+      if (!confirm(
+        `⚠️ WIPE SERVER: ${label}\n\n` +
+        `This will:\n` +
+        `• Stop all Docker containers and remove volumes\n` +
+        `• Stop PM2 and Nginx\n` +
+        `• Delete /home/ubuntu/TechStore\n` +
+        `• Remove SSL certs and swap\n\n` +
+        `The VM itself will NOT be deleted.\n` +
+        `Make sure you have a database backup first!\n\n` +
+        `Continue?`
+      )) return;
+
+      // — Switch to execution view
+      state.pipelineSteps = [{ step: 1, label: 'Wiping Server', status: 'running' }];
+      state.logs = [];
+      state.deployResult = null;
+      state.error = null;
+      state.view = 'execute';
+      renderExecution();
+
+      try {
+        await fetch(`/api/wipe/${id}`, { method: 'POST' });
+      } catch (err) {
+        state.error = { message: err.message };
+        renderExecutionError();
+      }
+    }
+
+    /** Backup database from a deployed server */
+    async function backupDB(id) {
+      const d = state.deployments.find(dd => dd.id === id);
+      if (!d) return;
+      const label = d.domain || d.serverIP;
+      const btn = document.getElementById(`btn-backup-${id}`);
+
+      if (!confirm(`Download database backup from ${label}?\n\nThis will run pg_dump on the server and download the SQL file.`)) return;
+
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Backing up...'; }
+
+      try {
+        const res = await fetch(`/api/backup/${id}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          const imgMsg = data.imagesFile ? `\n\nImages: ${data.imagesFile}` : '';
+          alert(`✅ Backup saved!\n\n${data.file}${imgMsg}`);
+        } else {
+          alert(`❌ Backup failed: ${data.message}`);
+        }
+      } catch (err) {
+        alert(`❌ Backup error: ${err.message}`);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Backup DB'; }
+      }
+    }
+
+    // ================================================================
+    // Restore DB — modal with backup list + file upload
+    // ================================================================
+
+    /** Show restore modal: lists existing backups + file upload zone */
+    async function showRestoreModal(id) {
+      const d = state.deployments.find(dd => dd.id === id);
+      if (!d) return;
+      const label = d.domain || d.serverIP;
+
+      // — Fetch available backups for this server
+      let backups = [];
+      try {
+        const res = await fetch(`/api/backups/${id}`);
+        backups = await res.json();
+      } catch { /* ignore */ }
+
+      // — Format file size
+      const fmtSize = (bytes) => {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      };
+
+      // — Build modal overlay
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.id = 'restore-modal';
+      overlay.innerHTML = `
+        <div class="modal-box">
+          <h3>&#128260; Restore Database &mdash; ${label}</h3>
+          <p class="text-dim" style="font-size: 13px; margin-bottom: 16px;">
+            &#9888;&#65039; This will <strong>DROP</strong> the current database and replace it with the backup. This action cannot be undone.
+          </p>
+
+          <!-- Upload zone -->
+          <div class="upload-zone" onclick="document.getElementById('restore-file-input').click()">
+            <div style="font-size: 28px; margin-bottom: 4px;">&#128193;</div>
+            <div style="font-size: 13px;">Click to upload a .sql file</div>
+            <div class="text-dim" style="font-size: 11px;">or select an existing backup below</div>
+            <input type="file" id="restore-file-input" accept=".sql" onchange="handleRestoreUpload(event, '${id}')">
+          </div>
+
+          <!-- Existing backups list -->
+          ${backups.length > 0 ? `
+            <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Existing Backups (${backups.length})</div>
+            <ul class="backup-list" id="backup-list">
+              ${backups.map(b => `
+                <li class="backup-item" onclick="selectBackup(this, '${b.file}')" data-file="${b.file}">
+                  <div>
+                    <span class="backup-item-name">${b.file}</span>
+                    ${b.hasImages ? `<div style="font-size: 11px; color: var(--green); margin-top: 2px;">\uD83D\uDDBC\uFE0F Images included (${fmtSize(b.imagesSize)})</div>` : ''}
+                  </div>
+                  <span class="backup-item-meta">${fmtSize(b.size)} &middot; ${new Date(b.date).toLocaleString()}</span>
+                </li>
+              `).join('')}
+            </ul>
+          ` : `<p class="text-dim" style="font-size: 13px;">No existing backups found. Create one first or upload a .sql file.</p>`}
+
+          <div class="modal-actions">
+            <button class="btn" onclick="closeRestoreModal()">Cancel</button>
+            <button class="btn btn-danger" id="btn-restore-confirm" disabled onclick="confirmRestore('${id}')">&#128260; Restore Selected</button>
+          </div>
+        </div>
+      `;
+
+      // — Close on overlay click (outside modal box)
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeRestoreModal();
+      });
+
+      document.body.appendChild(overlay);
+      overlay.dataset.selectedFile = '';
+    }
+
+    /** Highlight selected backup in the list */
+    function selectBackup(el, file) {
+      document.querySelectorAll('#backup-list .backup-item').forEach(li => li.classList.remove('selected'));
+      el.classList.add('selected');
+      const modal = document.getElementById('restore-modal');
+      if (modal) modal.dataset.selectedFile = file;
+      const btn = document.getElementById('btn-restore-confirm');
+      if (btn) { btn.disabled = false; btn.textContent = '🔄 Restore Selected'; }
+    }
+
+    /** Handle file upload: upload + restore immediately */
+    async function handleRestoreUpload(event, id) {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (!file.name.endsWith('.sql')) {
+        alert('Please select a .sql file');
+        return;
+      }
+
+      if (!confirm(`Upload and restore "${file.name}"?\n\n⚠️ This will DROP the current database and replace it entirely.`)) {
+        event.target.value = '';
+        return;
+      }
+
+      const btn = document.getElementById('btn-restore-confirm');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Restoring...'; }
+
+      try {
+        const buffer = await file.arrayBuffer();
+        const res = await fetch(`/api/restore/${id}/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'X-Filename': file.name
+          },
+          body: buffer
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ Database restored successfully!\n\n${data.message}`);
+          closeRestoreModal();
+        } else {
+          alert(`❌ Restore failed: ${data.message}`);
+        }
+      } catch (err) {
+        alert(`❌ Restore error: ${err.message}`);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 Restore Selected'; }
+        event.target.value = '';
+      }
+    }
+
+    /** Confirm restore from a selected existing backup */
+    async function confirmRestore(id) {
+      const modal = document.getElementById('restore-modal');
+      const backupFile = modal?.dataset.selectedFile;
+      if (!backupFile) return;
+
+      if (!confirm(`Restore from "${backupFile}"?\n\n⚠️ This will DROP the current database and replace it entirely.`)) return;
+
+      const btn = document.getElementById('btn-restore-confirm');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Restoring...'; }
+
+      try {
+        const res = await fetch(`/api/restore/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ backupFile })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ Database restored successfully!\n\n${data.message}`);
+          closeRestoreModal();
+        } else {
+          alert(`❌ Restore failed: ${data.message}`);
+        }
+      } catch (err) {
+        alert(`❌ Restore error: ${err.message}`);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 Restore Selected'; }
+      }
+    }
+
+    /** Close the restore modal */
+    function closeRestoreModal() {
+      const modal = document.getElementById('restore-modal');
+      if (modal) modal.remove();
+    }
+
+    /** Check SSH + HTTP status and gather full VM system info */
+    async function checkStatus(id) {
+      const btn = document.getElementById(`btn-status-${id}`);
+      // — Auto-expand this server card so loading/results are visible
+      if (!state._expandedServers) state._expandedServers = [];
+      if (!state._expandedServers.includes(id)) state._expandedServers.push(id);
+      const body = document.getElementById(`server-body-${id}`);
+      const chevron = document.getElementById(`chevron-${id}`);
+      if (body) { body.classList.add('open'); }
+      if (chevron) { chevron.classList.add('open'); }
+
+      const detailEl = document.getElementById(`vm-detail-${id}`);
+      if (btn) { btn.disabled = true; btn.textContent = 'Checking...'; }
+      // — Show loading in detail panel
+      if (detailEl) detailEl.innerHTML = '<div class="vm-detail"><p class="text-dim text-sm">Gathering system info via SSH...</p></div>';
+
+      try {
+        const res = await fetch(`/api/deployments/${id}/status`, { method: 'POST' });
+        const data = await res.json();
+
+        // — Update state and re-render manage view to show new data
+        await loadDeployments();
+
+      } catch (err) {
+        if (detailEl) detailEl.innerHTML = `<div class="vm-detail"><p style="color: var(--red);">&#10060; ${err.message}</p></div>`;
+        if (btn) { btn.disabled = false; btn.textContent = '\u{1F7E2} Status'; }
+      }
+    }
+
+    /** Start full deploy wizard pre-filled with a registered (saved) server */
+    function deployRegistered(id) {
+      const d = state.deployments.find(dd => dd.id === id);
+      if (!d) return;
+
+      // — Pre-fill existing server details and jump to deploy mode step
+      state.existingServer = { host: d.serverIP, user: d.sshUser, keyPath: d.sshKeyPath, label: d.domain, cloudProvider: d.cloudProvider || '' };
+      state.infraSource = 'existing';
+      startWizard().then(() => {
+        // — Skip to step 3 (deploy mode) since server is already validated
+        state.step = 3;
+        renderWizardStep();
+      });
+    }
+
+    // =================================================================
+    // HELPERS
+    // =================================================================
+
+    /** Render a troubleshoot suggestion block */
+    function renderTroubleshoot(ts) {
+      if (!ts) return '';
+      return `
+        <div class="troubleshoot" style="margin-top: 12px;">
+          <h4 style="color: var(--yellow);">&#128295; ${escapeHTML(ts.title || 'Troubleshooting')}</h4>
+          <ul>${(ts.fixes || []).map(f => `<li>${escapeHTML(f)}</li>`).join('')}</ul>
+        </div>
+      `;
+    }
+
+    function escapeHTML(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function escapeAttr(str) {
+      return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function generatePassword(len) {
+      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let result = '';
+      const values = crypto.getRandomValues(new Uint8Array(len));
+      for (let i = 0; i < len; i++) result += chars[values[i] % chars.length];
+      return result;
+    }
+
+    async function regenerateJWT() {
+      try {
+        const res = await fetch('/api/generate/secret');
+        const data = await res.json();
+        state.appConfig.jwtSecret = data.secret;
+        renderWizardStep();
+      } catch { /* ignore */ }
+    }
+
+    function toggleOptionalSection(name, show) {
+      const el = document.getElementById(`section-${name}`);
+      if (el) el.classList.toggle('hidden', !show);
+    }
+
+    function copyLogs() {
+      const text = state.logs.map(l => l.text).join('\n');
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Logs copied to clipboard');
+      });
+    }
+
+    // =================================================================
+    // INIT
+    // =================================================================
+    connectWS();
+    renderHome();
+  </script>
+</body>
+</html>
