@@ -1,5 +1,5 @@
 // =============================================================================
-// Deploy Orchestrator — Express Server
+// Deploy Orchestrator — Express Server.
 // =============================================================================
 // Serves the wizard UI and handles deployment pipeline execution.
 // Streams live terminal output to the browser via WebSocket.
@@ -20,7 +20,7 @@ import crypto from 'crypto';
 // — Execution engine imports
 import { runTerraform } from './lib/terraform.js';
 import { runAnsible } from './lib/ansible.js';
-import { testSSH, getSystemInfo, wipeServer, backupDatabase, restoreDatabase, composeUp, composeDown, composeRestart, refreshDocker, refreshNative, pm2Restart, pm2Stop, nginxReload } from './lib/ssh.js';
+import { testSSH, getSystemInfo, wipeServer, backupDatabase, restoreDatabase, composeUp, composeDown, composeRestart, refreshDocker, refreshNative, pm2Restart, pm2Stop, nginxReload, collectServerDiagnostics } from './lib/ssh.js';
 import { getTroubleshoot } from './lib/troubleshoot.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -337,10 +337,24 @@ app.post('/api/deploy', async (req, res) => {
 
   } catch (err) {
     const fix = getTroubleshoot(err.message || String(err));
+    let diagnostics = null;
+
+    // — Pull real VM state when deployment fails after server details are known
+    if (serverIP && sshUser && sshKeyPath) {
+      try {
+        broadcast('step', { step: 5, status: 'running', label: 'Collecting VM Diagnostics' });
+        diagnostics = await collectServerDiagnostics(serverIP, sshUser, sshKeyPath, broadcast);
+        broadcast('step', { step: 5, status: 'completed', label: 'VM Diagnostics', detail: 'Collected from remote server' });
+      } catch (diagErr) {
+        broadcast('log', { text: `Diagnostics collection failed: ${diagErr.message}`, source: 'diagnostics' });
+      }
+    }
+
     broadcast('error', {
       message: err.message,
       troubleshoot: fix,
-      retryable: true
+      retryable: true,
+      diagnostics
     });
   }
 });
@@ -393,7 +407,49 @@ app.post('/api/redeploy/:id', async (req, res) => {
     broadcast('complete', { success: true, deployment });
   } catch (err) {
     const fix = getTroubleshoot(err.message || String(err));
-    broadcast('error', { message: err.message, troubleshoot: fix });
+    let diagnostics = null;
+    try {
+      broadcast('step', { step: 5, status: 'running', label: 'Collecting VM Diagnostics' });
+      diagnostics = await collectServerDiagnostics(
+        deployment.serverIP,
+        deployment.sshUser,
+        deployment.sshKeyPath,
+        broadcast
+      );
+      broadcast('step', { step: 5, status: 'completed', label: 'VM Diagnostics', detail: 'Collected from remote server' });
+    } catch (diagErr) {
+      broadcast('log', { text: `Diagnostics collection failed: ${diagErr.message}`, source: 'diagnostics' });
+    }
+
+    broadcast('error', { message: err.message, troubleshoot: fix, diagnostics });
+  }
+});
+
+// =============================================================================
+// API: Pull live VM diagnostics on demand (for deployment debugging)
+// =============================================================================
+app.post('/api/deployments/:id/diagnostics', async (req, res) => {
+  const deployments = loadDeployments();
+  const deployment = deployments.find(d => d.id === req.params.id);
+  if (!deployment) return res.status(404).json({ success: false, message: 'Deployment not found' });
+
+  try {
+    const diagnostics = await collectServerDiagnostics(
+      deployment.serverIP,
+      deployment.sshUser,
+      deployment.sshKeyPath,
+      broadcast
+    );
+
+    deployment.lastDiagnostics = {
+      at: new Date().toISOString(),
+      parsed: diagnostics.parsed
+    };
+    writeFileSync(DEPLOYMENTS_FILE, JSON.stringify(deployments, null, 2));
+
+    res.json({ success: true, diagnostics });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
