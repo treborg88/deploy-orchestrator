@@ -20,7 +20,7 @@ import crypto from 'crypto';
 // — Execution engine imports
 import { runTerraform } from './lib/terraform.js';
 import { runAnsible } from './lib/ansible.js';
-import { testSSH, getSystemInfo, wipeServer, backupDatabase, restoreDatabase, composeUp, composeDown, composeRestart, refreshDocker, refreshNative, pm2Restart, pm2Stop, nginxReload, collectServerDiagnostics } from './lib/ssh.js';
+import { testSSH, getSystemInfo, wipeServer, backupDatabase, restoreDatabase, composeUp, composeDown, composeRestart, refreshDocker, forceDeployDocker, refreshNative, pm2Restart, pm2Stop, nginxReload, collectServerDiagnostics } from './lib/ssh.js';
 import { getTroubleshoot } from './lib/troubleshoot.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -659,6 +659,7 @@ const QUICK_ACTIONS = {
   'compose-down':    { fn: composeDown,      dockerOnly: true,  label: 'Docker Compose Down' },
   'compose-restart': { fn: composeRestart,   dockerOnly: true,  label: 'Docker Compose Restart' },
   'refresh-docker':  { fn: refreshDocker,    dockerOnly: true,  label: 'Git Pull & Rebuild (Docker)' },
+  'force-deploy':    { fn: forceDeployDocker,dockerOnly: true,  label: 'Force Deploy (Docker)' },
   'refresh-native':  { fn: refreshNative,    nativeOnly: true,  label: 'Git Pull & Restart (Native)' },
   'pm2-restart':     { fn: pm2Restart,       nativeOnly: true,  label: 'PM2 Restart All' },
   'pm2-stop':        { fn: pm2Stop,          nativeOnly: true,  label: 'PM2 Stop All' },

@@ -693,6 +693,7 @@
       logs: [],
       deployResult: null,
       error: null,
+      executionContext: { deploymentId: null, action: null },
 
       // — Saved deployments
       deployments: []
@@ -1386,6 +1387,7 @@
       state.logs = [];
       state.deployResult = null;
       state.error = null;
+      state.executionContext = { deploymentId: null, action: 'deploy' };
       state.view = 'execute';
       renderExecution();
 
@@ -1543,6 +1545,10 @@
       const e = state.error;
       if (!e) return;
 
+      const ctxId = state.executionContext?.deploymentId;
+      const ctxDeployment = ctxId ? state.deployments.find(dd => dd.id === ctxId) : null;
+      const canForceDeploy = !!(ctxDeployment && ctxDeployment.deployMode === 'docker' && ctxDeployment.status !== 'registered');
+
       const panel = document.getElementById('troubleshoot-panel');
       if (panel) {
         let html = `
@@ -1562,6 +1568,7 @@
           <div class="mt-16" style="display: flex; gap: 8px;">
             <button class="btn" onclick="startDeploy()">&#128260; Retry</button>
             <button class="btn" onclick="copyLogs()">&#128203; Copy Full Log</button>
+            ${canForceDeploy ? '<button class="btn btn-warn" onclick="forceDeployFromError()">&#9888;&#65039; Force Deploy</button>' : ''}
             <button class="btn btn-danger" onclick="showView('home')">&#128721; Abort</button>
           </div>
         </div>`;
@@ -1836,6 +1843,7 @@
       state.logs = [];
       state.deployResult = null;
       state.error = null;
+      state.executionContext = { deploymentId: id, action: 'redeploy' };
       state.view = 'execute';
       renderExecution();
 
@@ -1887,6 +1895,7 @@
         'compose-down':    'Stop Docker containers',
         'compose-restart': 'Restart Docker containers',
         'refresh-docker':  'Git Pull & Rebuild (Docker)',
+        'force-deploy':    'Force Deploy (Docker)',
         'refresh-native':  'Git Pull & Refresh (Native)',
         'pm2-restart':     'Restart PM2 processes',
         'pm2-stop':        'Stop PM2 processes',
@@ -1895,7 +1904,7 @@
       const actionLabel = labels[action] || action;
 
       // Dangerous actions require confirmation
-      const dangerous = ['compose-down', 'pm2-stop'];
+      const dangerous = ['compose-down', 'pm2-stop', 'force-deploy'];
       if (dangerous.includes(action)) {
         if (!confirm(`⚠️ ${actionLabel} on ${label}?\n\nThis will make the site temporarily unavailable.`)) return;
       }
@@ -1905,6 +1914,7 @@
       state.logs = [];
       state.deployResult = null;
       state.error = null;
+      state.executionContext = { deploymentId: id, action };
       state.view = 'execute';
       renderExecution();
 
@@ -1942,6 +1952,7 @@
       state.logs = [];
       state.deployResult = null;
       state.error = null;
+      state.executionContext = { deploymentId: id, action: 'wipe' };
       state.view = 'execute';
       renderExecution();
 
@@ -1978,6 +1989,35 @@
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = '💾 Backup DB'; }
       }
+    }
+
+    /** Run Force Deploy from the execution error panel (Docker only). */
+    async function forceDeployFromError() {
+      const id = state.executionContext?.deploymentId;
+      if (!id) {
+        alert('No server context available for Force Deploy.');
+        return;
+      }
+
+      const d = state.deployments.find(dd => dd.id === id);
+      if (!d) {
+        alert('Server not found in saved deployments. Reload Manage view and try again.');
+        return;
+      }
+      if (d.deployMode !== 'docker') {
+        alert('Force Deploy is only available for Docker deployments.');
+        return;
+      }
+
+      const label = d.domain || d.serverIP;
+      if (!confirm(
+        `⚠️ Force Deploy on ${label}?\n\n` +
+        `This will discard tracked local code changes on the VM (git reset --hard origin/main), ` +
+        `then rebuild and restart Docker containers.\n\n` +
+        `Database volumes are preserved.`
+      )) return;
+
+      await quickAction(id, 'force-deploy');
     }
 
     // ================================================================
